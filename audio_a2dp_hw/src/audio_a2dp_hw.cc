@@ -245,6 +245,11 @@ static int skt_connect(const char* path, size_t buffer_sz) {
   INFO("connect to %s (sz %zu)", path, buffer_sz);
 
   skt_fd = socket(AF_LOCAL, SOCK_STREAM, 0);
+  if(skt_fd < 0)
+  {
+    ERROR("failed to create socket");
+    return -1;
+  }
 
   if (osi_socket_local_client_connect(
           skt_fd, path, ANDROID_SOCKET_NAMESPACE_ABSTRACT, SOCK_STREAM) < 0) {
@@ -1182,7 +1187,7 @@ static int out_set_parameters(struct audio_stream* stream,
   if (params["A2dpSuspended"].compare("true") == 0) {
     if (out->common.state == AUDIO_A2DP_STATE_STARTED)
       status = suspend_audio_datapath(&out->common, false);
-  } else {
+  } else if (params["A2dpSuspended"].compare("false") == 0) {
     /* Do not start the streaming automatically. If the phone was streaming
      * prior to being suspended, the next out_write shall trigger the
      * AVDTP start procedure */
@@ -1660,6 +1665,8 @@ static int adev_open_output_stream(struct audio_hw_device* dev,
   *stream_out = &out->stream;
   a2dp_dev->output = out;
 
+  DEBUG("A2DP_CTRL_CMD_STREAM_OPEN sent to unblock audio start");
+  a2dp_command(&out->common, A2DP_CTRL_CMD_STREAM_OPEN);
   DEBUG("success");
   /* Delay to ensure Headset is in proper state when START is initiated from
    * DUT immediately after the connection due to ongoing music playback. */
